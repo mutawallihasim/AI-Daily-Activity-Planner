@@ -69,10 +69,9 @@ st.markdown("""
 
 # Inisialisasi State Aktivitas
 if "activities" not in st.session_state:
-    # Memuat default awal yang selalu memiliki Istirahat jam 12 (Constraint 1)
+    # Memuat default awal yang selalu memiliki Istirahat jam 12 (Constraint mutlak V4)
     st.session_state.activities = [
-        Activity("Makan & Salat Dzuhur", "Waktu Istirahat", 1, fixed_start=12, id="rest_dzuhur"),
-        Activity("Makan & Salat Maghrib", "Waktu Istirahat", 1, fixed_start=18, id="rest_maghrib")
+        Activity("Waktu Istirahat (Sholat/Makan)", "Waktu Istirahat", 1, fixed_start=12, id="rest_v4")
     ]
 
 # Fungsi pemformatan tanggal Indonesia
@@ -115,7 +114,7 @@ act_category = st.sidebar.selectbox(
 act_duration = st.sidebar.slider("Durasi (Jam)", min_value=1, max_value=5, value=1)
 
 # Waktu Tetap atau Fleksibel
-is_fixed = st.sidebar.checkbox("Tentukan Jam Mulai (Waktu Tetap / Hard Constraint)")
+is_fixed = st.sidebar.checkbox("Tentukan Jam Mulai (Waktu Tetap)")
 fixed_start_time = st.sidebar.selectbox(
     "Pilih Jam Mulai",
     range(7, 22),
@@ -132,7 +131,7 @@ if submit_btn:
         # Hitung total jam belajar mandiri saat ini
         study_hours = sum(a.duration for a in st.session_state.activities if a.category == "Waktu Tugas/Belajar Mandiri")
         if act_category == "Waktu Tugas/Belajar Mandiri" and study_hours + act_duration > 3:
-            st.sidebar.error("Gagal! Total waktu Belajar Mandiri dibatasi maksimal 3 jam sehari (Constraint 3).")
+            st.sidebar.error("Gagal! Total waktu Belajar Mandiri dibatasi maksimal 3 jam sehari.")
         else:
             import uuid
             unique_id = f"{act_category.lower().replace(' ', '_')}_{act_name.lower().replace(' ', '_')}_{uuid.uuid4().hex[:6]}"
@@ -143,8 +142,27 @@ if submit_btn:
                 fixed_start=fixed_start_time if is_fixed else None,
                 id=unique_id
             )
-            st.session_state.activities.append(new_act)
-            st.rerun()
+            
+            # Validasi bentrokan khusus untuk aktivitas dengan waktu tetap
+            is_overlap = False
+            overlap_name = ""
+            if is_fixed:
+                new_start = fixed_start_time
+                new_end = new_start + act_duration
+                for ex_act in st.session_state.activities:
+                    if ex_act.fixed_start is not None:
+                        ex_start = ex_act.fixed_start
+                        ex_end = ex_start + ex_act.duration
+                        if new_start < ex_end and ex_start < new_end:
+                            is_overlap = True
+                            overlap_name = ex_act.name
+                            break
+            
+            if is_overlap:
+                st.sidebar.error(f"Gagal! Jadwal bertabrakan dengan aktivitas tetap '{overlap_name}'. Silakan input ulang jam mulainya.")
+            else:
+                st.session_state.activities.append(new_act)
+                st.rerun()
 
 # Tampilkan Daftar Aktivitas Saat Ini di Sidebar
 st.sidebar.markdown("### 📋 Daftar Aktivitas")

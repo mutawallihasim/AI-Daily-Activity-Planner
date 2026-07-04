@@ -49,8 +49,10 @@ def solve_csp_library(activities):
     if not solutions:
         return None
 
-    # Mengambil solusi pertama dan memetakan ke jadwal per jam
-    sol = solutions[0]
+    # Mengambil solusi yang memprioritaskan waktu paling awal untuk aktivitas fleksibel
+    # Dengan cara memilih solusi yang memiliki total jumlah jam mulai paling kecil
+    sol = min(solutions, key=lambda s: sum(s.values()))
+    
     schedule = {h: "Kosong" for h in range(7, 22)}
     for act in activities:
         start = sol[act.id]
@@ -126,7 +128,12 @@ def solve_csp_custom(activities):
             
         # Pemilihan variabel berikutnya (menggunakan heuristik MRV - Minimum Remaining Values)
         unassigned = [v for v in variables if v not in assignment]
-        unassigned.sort(key=lambda v: len(domains[v]))
+        
+        # Hitung sisa nilai yang valid (konsisten) untuk setiap variabel yang belum di-assign
+        def count_remaining_values(var_id):
+            return sum(1 for val in domains[var_id] if is_consistent(var_id, val, assignment)[0])
+            
+        unassigned.sort(key=lambda v: count_remaining_values(v))
         var_id = unassigned[0]
         act = act_map[var_id]
         
